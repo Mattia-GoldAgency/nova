@@ -1,45 +1,41 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { getMyProfile } from "@/lib/profile";
 import { getRecentEvents, AppEvent } from "@/lib/events";
 
 export default function DashboardPage() {
-  const router = useRouter();
-
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<string | null>(null);
   const [events, setEvents] = useState<AppEvent[]>([]);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     (async () => {
       try {
+        // Con proxy attivo, qui l'utente dovrebbe sempre essere loggato e onboarded.
+        // Quindi NON facciamo redirect dal client: carichiamo solo dati UI.
         const { user, profile } = await getMyProfile();
 
-        if (!user) {
-          router.replace("/login");
-          return;
-        }
-
-        if (!profile || !profile.onboarding_completed) {
-          router.replace("/onboarding");
+        if (!user || !profile) {
+          setError("Sessione non valida o profilo mancante. Ricarica la pagina.");
+          setLoading(false);
           return;
         }
 
         setRole(profile.role);
 
-        // carica eventi recenti
         const recent = await getRecentEvents(5);
         setEvents(recent);
 
         setLoading(false);
       } catch (e: any) {
         console.error("Errore dashboard:", e?.message ?? e);
-        router.replace("/login");
+        setError("Errore caricamento dashboard. Ricarica la pagina.");
+        setLoading(false);
       }
     })();
-  }, [router]);
+  }, []);
 
   if (loading) return <p style={{ padding: 24 }}>Caricamento...</p>;
 
@@ -47,9 +43,12 @@ export default function DashboardPage() {
     <main style={{ padding: 24, display: "grid", gap: 16 }}>
       <section>
         <h1>Dashboard NOVA</h1>
-        <p>
-          Ruolo: <b>{role}</b>
-        </p>
+        {role && (
+          <p>
+            Ruolo: <b>{role}</b>
+          </p>
+        )}
+        {error && <p style={{ color: "red" }}>{error}</p>}
       </section>
 
       <section style={{ border: "1px solid #ddd", padding: 12 }}>

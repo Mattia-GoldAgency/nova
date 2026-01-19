@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
-import { logEvent } from "@/lib/events"; // 👈 STEP 7D
+import { logEvent } from "@/lib/events";
 
 type Role = "assistant" | "companion";
 
@@ -14,41 +14,17 @@ export default function OnboardingPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  // Se uno arriva qui già onboarded, lo rimandiamo in dashboard
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.auth.getUser();
-      if (!data.user) {
-        router.replace("/login");
-        return;
-      }
-
-      const { data: profile, error } = await supabase
-        .from("user_profiles")
-        .select("onboarding_completed")
-        .eq("id", data.user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Errore lettura user_profiles:", error.message);
-        return; // non blocchiamo: l'utente può comunque completare onboarding
-      }
-
-      if (profile?.onboarding_completed) router.replace("/dashboard");
-    })();
-  }, [router]);
-
   async function saveOnboarding(role: Role) {
     const { data } = await supabase.auth.getUser();
     const user = data.user;
-    if (!user) throw new Error("Not logged in");
+
+    // Con proxy attivo, qui l'utente dovrebbe sempre esserci.
+    // Se manca, mostriamo errore (non redirectiamo dal client).
+    if (!user) throw new Error("Sessione non valida. Ripeti il login.");
 
     const { error } = await supabase
       .from("user_profiles")
-      .upsert(
-        { id: user.id, role, onboarding_completed: true },
-        { onConflict: "id" }
-      );
+      .upsert({ id: user.id, role, onboarding_completed: true }, { onConflict: "id" });
 
     if (error) throw error;
   }
@@ -64,10 +40,7 @@ export default function OnboardingPage() {
 
     try {
       await saveOnboarding(selectedRole);
-
-      // ✅ STEP 7D: log evento onboarding completato
       await logEvent("onboarding_completed", { role: selectedRole });
-
       router.push("/dashboard");
     } catch (e: any) {
       setError(e?.message ?? "Errore nel salvataggio. Riprova.");
@@ -120,12 +93,7 @@ export default function OnboardingPage() {
           </button>
         </div>
 
-        <button
-          type="button"
-          onClick={onConfirm}
-          disabled={saving}
-          style={{ padding: 12 }}
-        >
+        <button type="button" onClick={onConfirm} disabled={saving} style={{ padding: 12 }}>
           {saving ? "Salvataggio..." : "Conferma e continua"}
         </button>
 
