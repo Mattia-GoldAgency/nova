@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabaseClient";
 
-export type EventType = "login_success" | "onboarding_completed";
+export type EventType = "login_success" | "onboarding_completed" | "session_start_clicked" | "assiassistant_cta_clicked" | "companion_cta_clicked" | "session_created" | "sessione_mode_selected" | "message_sent";
 
 export type AppEvent = {
   id: string;
