@@ -1,59 +1,44 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createSupabaseServerClient } from "@/lib/supabaseServer";
 
-function isValidEmail(email: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+export async function GET() {
+  // Se vuoi mostrare uno status semplice per debug/healthcheck
+  return NextResponse.json({ ok: true }, { status: 200 });
 }
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const emailRaw = (body?.email ?? "").toString();
-    const email = emailRaw.trim().toLowerCase();
+    const { supabase, res } = createSupabaseServerClient(req as any);
 
-    if (!email || !isValidEmail(email)) {
-      return NextResponse.json({ ok: false, error: "Email non valida" }, { status: 400 });
+    const body = await req.json().catch(() => ({}));
+    const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+
+    if (!email || !email.includes("@")) {
+      return NextResponse.json({ error: "Email non valida" }, { status: 400 });
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-    // Se per qualche motivo su Vercel mancano le env, evitiamo crash
-    if (!supabaseUrl || !supabaseAnonKey) {
-      return NextResponse.json(
-        { ok: false, error: "Configurazione mancante. Riprova più tardi." },
-        { status: 500 }
-      );
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-    const { error } = await supabase.from("waitlist").insert([{ email }]);
+    // TODO: qui devi usare la tua tabella reale (es. waitlist)
+    // Esempio: public.waitlist(email text unique, created_at timestamptz default now())
+    const { error } = await supabase.from("waitlist").insert({ email });
 
     if (error) {
-      const msg = ((error as any).message?.toString() ?? "").toLowerCase();
+      // se email unique e già presente, rispondiamo comunque ok (idempotente)
+      const msg = (error as any)?.message?.toLowerCase?.() ?? "";
+      const code = (error as any)?.code ?? "";
 
-      // Duplicato: email già presente (unique constraint)
-      // Supabase/Postgres possono usare messaggi diversi
       const isDuplicate =
-        msg.includes("duplicate") ||
-        msg.includes("already exists") ||
-        msg.includes("unique") ||
-        msg.includes("violates unique constraint");
+        code === "23505" || msg.includes("duplicate") || msg.includes("unique");
 
       if (isDuplicate) {
-        return NextResponse.json({ ok: true, already: true });
+        return NextResponse.json({ ok: true, already: true }, { status: 200 });
       }
 
-      // Non esponiamo dettagli tecnici
-      return NextResponse.json(
-        { ok: false, error: "Non riesco a salvare ora. Riprova tra poco." },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Errore salvataggio waitlist" }, { status: 500 });
     }
 
-    return NextResponse.json({ ok: true });
-  } catch {
-    return NextResponse.json({ ok: false, error: "Errore imprevisto" }, { status: 500 });
+    // Importante: preserviamo eventuali cookie set dal client server Supabase
+    return NextResponse.json({ ok: true }, { status: 200, headers: res.headers });
+  } catch (e) {
+    return NextResponse.json({ error: "Errore inatteso" }, { status: 500 });
   }
 }

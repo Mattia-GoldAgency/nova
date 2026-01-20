@@ -1,26 +1,68 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Testi */
+    --fg: 0 0% 100%;
+    --muted-fg: 0 0% 86%;
+
+    /* Superfici (usate per card/input) */
+    --card: 0 0% 100%;
+    --border: 0 0% 100%;
+    --ring: 0 0% 100%;
+
+    /* Brand (rimangono utili per gradient/pallini/CTA) */
+    --primary: 222 92% 54%; /* blu elettrico */
+    --primary-fg: 0 0% 100%;
+
+    --accent: 290 90% 62%;  /* viola elettrico */
+    --accent-fg: 0 0% 100%;
+
+    --success: 142 72% 45%;
+    --danger: 0 80% 60%;
+
+    --radius: 16px;
   }
-}
+
+  html,
+  body {
+    height: 100%;
+  }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: hsl(var(--fg));
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+
+  /* ELECTRIC DARK BACKGROUND */
+  background:
+    radial-gradient(
+      1200px 600px at 20% 10%,
+      rgba(0, 120, 255, 0.35),
+      rgba(0, 0, 0, 0)
+    ),
+    radial-gradient(
+      1000px 600px at 80% 20%,
+      rgba(160, 0, 255, 0.35),
+      rgba(0, 0, 0, 0)
+    ),
+    radial-gradient(
+      800px 500px at 50% 80%,
+      rgba(90, 0, 200, 0.25),
+      rgba(0, 0, 0, 0)
+    ),
+    linear-gradient(
+      180deg,
+      #05060f 0%,
+      #070a1a 35%,
+      #0b0f2a 60%,
+      #09081f 100%
+    );
+
+  background-attachment: fixed;
+}
+
 }
