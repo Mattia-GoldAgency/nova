@@ -2,22 +2,24 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+type Status = "idle" | "loading" | "ok" | "already" | "error";
+
 export default function Home() {
   const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => setMounted(true), []);
 
   const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
+  const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState<string>("");
+
+  // ✅ IMPORTANT: blocca il form SOLO durante il loading (non su error)
+  const formDisabled = status === "loading";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
 
     const emailTrim = email.trim();
-    if (!emailTrim) return;
+    if (!emailTrim || formDisabled) return;
 
     setStatus("loading");
     setMessage("");
@@ -29,18 +31,29 @@ export default function Home() {
         body: JSON.stringify({ email: emailTrim }),
       });
 
-      const data = await res.json().catch(() => ({}));
+      // ✅ Leggiamo SEMPRE JSON (se non c'è, usiamo oggetto vuoto)
+      const data: any = await res.json().catch(() => ({}));
 
+      // ✅ Se HTTP non OK → errore con messaggio dall'API (se presente)
       if (!res.ok) {
         setStatus("error");
         setMessage(data?.error || "Errore. Riprova.");
         return;
       }
 
+      // ✅ Caso già presente
+      if (data?.already === true) {
+        setStatus("already");
+        setMessage("Sei già in lista ✅");
+        return;
+      }
+
+      // ✅ Caso inserito con successo
       setStatus("ok");
-      setMessage(data?.already ? "Sei già in lista ✅" : "Perfetto! Sei in waitlist ✅");
+      setMessage("Perfetto! Sei in waitlist ✅");
       setEmail("");
 
+      // (opzionale) reset automatico dopo successo
       setTimeout(() => {
         setStatus("idle");
         setMessage("");
@@ -50,8 +63,6 @@ export default function Home() {
       setMessage("Errore di rete. Riprova.");
     }
   }
-
-  const formDisabled = status !== "idle";
 
   const colors = {
     text: "rgba(255,255,255,0.92)",
@@ -64,23 +75,27 @@ export default function Home() {
     inputPlaceholder: "rgba(255,255,255,0.55)",
     danger: "rgba(255, 120, 140, 0.95)",
     success: "rgba(180, 255, 220, 0.92)",
+    info: "rgba(210, 220, 255, 0.86)",
 
     btnBorder: "rgba(255,255,255,0.18)",
-    btnBg: "linear-gradient(135deg, rgba(0,38,100,0.55), rgba(55,0,95,0.55))",
-    btnBgHover: "linear-gradient(135deg, rgba(0,60,145,0.62), rgba(95,0,155,0.62))",
+    btnBg: "linear-gradient(135deg, rgba(0,38,100,0.60), rgba(55,0,95,0.60))",
+    btnBgHover: "linear-gradient(135deg, rgba(0,60,145,0.70), rgba(95,0,155,0.70))",
     btnGlow:
-      "0 18px 60px rgba(0,120,255,0.14), 0 18px 60px rgba(160,0,255,0.10)",
+      "0 18px 60px rgba(0,120,255,0.16), 0 18px 60px rgba(160,0,255,0.12)",
     btnGlowHover:
-      "0 22px 80px rgba(0,120,255,0.20), 0 22px 80px rgba(160,0,255,0.16)",
+      "0 22px 80px rgba(0,120,255,0.22), 0 22px 80px rgba(160,0,255,0.18)",
   };
 
-  // Stelle deterministiche (ma le renderizziamo solo dopo mount per evitare ogni mismatch residuo)
+  // Messaggio colorato per stato
+  const messageColor =
+    status === "error" ? colors.danger : status === "ok" ? colors.success : colors.info;
+
+  // Stelle deterministiche (render solo dopo mount)
   const stars = useMemo(() => {
     const prand = (seed: number) => {
       const x = Math.sin(seed * 9999) * 10000;
       return x - Math.floor(x);
     };
-
     const count = 70;
 
     return Array.from({ length: count }).map((_, i) => {
@@ -93,8 +108,6 @@ export default function Home() {
       return { i, left, top, size, opacity, duration, delay };
     });
   }, []);
-
-  const year = mounted ? new Date().getFullYear() : "";
 
   return (
     <main
@@ -110,10 +123,9 @@ export default function Home() {
           "linear-gradient(180deg, #05060f 0%, #070a1a 35%, #0b0f2a 60%, #09081f 100%)",
       }}
     >
-      {/* Effetti SOLO dopo mount -> niente hydration mismatch */}
+      {/* Effetti dopo mount */}
       {mounted && (
         <>
-          {/* SFONDO: Parallax + Pulse */}
           <div
             aria-hidden
             style={{
@@ -130,15 +142,14 @@ export default function Home() {
                 position: "absolute",
                 inset: 0,
                 background:
-                  "radial-gradient(1200px 650px at 18% 12%, rgba(0,120,255,0.38), rgba(0,0,0,0))," +
-                  "radial-gradient(1050px 650px at 82% 18%, rgba(160,0,255,0.34), rgba(0,0,0,0))," +
-                  "radial-gradient(850px 520px at 55% 85%, rgba(90,0,200,0.26), rgba(0,0,0,0))",
+                  "radial-gradient(1200px 650px at 18% 12%, rgba(0,120,255,0.40), rgba(0,0,0,0))," +
+                  "radial-gradient(1050px 650px at 82% 18%, rgba(160,0,255,0.36), rgba(0,0,0,0))," +
+                  "radial-gradient(850px 520px at 55% 85%, rgba(90,0,200,0.28), rgba(0,0,0,0))",
                 animation: "bgPulse 22s ease-in-out infinite",
               }}
             />
           </div>
 
-          {/* STELLE */}
           <div aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
             {stars.map((s) => (
               <span
@@ -161,11 +172,10 @@ export default function Home() {
         </>
       )}
 
-      {/* CONTENUTO */}
       <div style={{ maxWidth: 760, width: "100%", position: "relative", zIndex: 1 }}>
-        <h1 style={{ margin: 0, fontSize: 30, letterSpacing: 0.6 }}>NOVA</h1>
+        <h1 style={{ margin: 0, fontSize: 31, letterSpacing: 0.6 }}>NOVA</h1>
 
-        <p style={{ marginTop: 22, fontSize: 19, lineHeight: 1.55, color: colors.textMuted }}>
+        <p style={{ marginTop: 22, fontSize: 20, lineHeight: 1.55, color: colors.textMuted }}>
           Il tuo <strong style={{ color: colors.text }}>avatar AI</strong>, sempre{" "}
           <strong style={{ color: colors.text }}>presente</strong>, disponibile e coerente.
         </p>
@@ -183,16 +193,24 @@ export default function Home() {
           }}
         >
           <h2 style={{ margin: 0, fontSize: 17 }}>Accedi al tuo futuro</h2>
+          <p style={{ marginTop: 9, marginBottom: 14, color: colors.textSoft }}>
+            Lascia la tua email per entrare nella waitlist.
+          </p>
 
-          <form
-            onSubmit={onSubmit}
-            style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}
-          >
+          <form onSubmit={onSubmit} style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <input
               type="email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+
+                // ✅ se c'era errore/già/ok, consentiamo subito un nuovo tentativo
+                if (status !== "idle") {
+                  setStatus("idle");
+                  setMessage("");
+                }
+              }}
               placeholder="nome@email.com"
               style={{
                 flex: "1 1 260px",
@@ -217,10 +235,11 @@ export default function Home() {
                 color: "white",
                 boxShadow: colors.btnGlow,
                 cursor: formDisabled ? "default" : "pointer",
-                opacity: formDisabled ? 0.75 : 1,
+                opacity: formDisabled ? 0.78 : 1,
                 transition: "background 200ms ease, box-shadow 220ms ease, transform 120ms ease",
               }}
               onMouseEnter={(e) => {
+                if (formDisabled) return;
                 const el = e.currentTarget as HTMLButtonElement;
                 el.style.background = colors.btnBgHover;
                 el.style.boxShadow = colors.btnGlowHover;
@@ -232,6 +251,7 @@ export default function Home() {
                 el.style.transform = "translateY(0)";
               }}
               onMouseDown={(e) => {
+                if (formDisabled) return;
                 (e.currentTarget as HTMLButtonElement).style.transform = "translateY(1px)";
               }}
               onMouseUp={(e) => {
@@ -242,13 +262,17 @@ export default function Home() {
             </button>
           </form>
 
-          <p style={{ marginTop: 12, fontSize: 12.5, color: colors.textSoft }}>
-            {message || "Niente spam. Solo aggiornamenti sul lancio."}
-          </p>
+          {message ? (
+            <p style={{ marginTop: 12, fontSize: 12.5, color: messageColor }}>{message}</p>
+          ) : (
+            <p style={{ marginTop: 12, fontSize: 12.5, color: colors.textSoft }}>
+              Niente spam. Solo aggiornamenti sul lancio.
+            </p>
+          )}
         </div>
 
         <p style={{ marginTop: 20, fontSize: 12.5, color: colors.textSoft }}>
-          {year ? `© ${year} NOVA` : "© NOVA"}
+          © {new Date().getFullYear()} NOVA
         </p>
       </div>
 
