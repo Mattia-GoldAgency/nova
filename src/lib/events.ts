@@ -1,6 +1,25 @@
 import { supabase } from "@/lib/supabaseClient";
 
-export type EventType = "login_success" | "onboarding_completed" | "session_start_clicked" | "assiassistant_cta_clicked" | "companion_cta_clicked" | "session_created" | "sessione_mode_selected" | "message_sent";
+export type EventType =
+  | "login_success"
+  | "onboarding_completed"
+  | "session_start_clicked"
+
+  // Dashboard CTAs (aggiunti per evitare blocchi build)
+  | "cta_start_conversation_clicked"
+  | "cta_journal_clicked"
+  | "cta_task_clicked"
+
+  // Legacy / altre CTAs
+  | "assiassistant_cta_clicked" // legacy/typo mantenuto
+  | "assistant_cta_clicked" // variante corretta
+  | "companion_cta_clicked"
+
+  // Session / messaging
+  | "session_created"
+  | "sessione_mode_selected" // legacy/typo mantenuto
+  | "session_mode_selected" // variante corretta
+  | "message_sent";
 
 export type AppEvent = {
   id: string;
